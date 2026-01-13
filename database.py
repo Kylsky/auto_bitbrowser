@@ -104,6 +104,34 @@ class DBManager:
     @staticmethod
     def import_from_files():
         """从现有文本文件导入数据到数据库（初始化用）"""
+        count_total = 0
+        
+        # 1. 优先从 accounts.txt 导入（使用新的解析方式）
+        accounts_path = os.path.join(BASE_DIR, "accounts.txt")
+        if os.path.exists(accounts_path):
+            try:
+                # 使用create_window中的read_accounts函数
+                from create_window import read_accounts
+                accounts = read_accounts(accounts_path)
+                
+                print(f"从 accounts.txt 读取到 {len(accounts)} 个账号")
+                
+                for account in accounts:
+                    email = account.get('email', '')
+                    pwd = account.get('password', '')
+                    rec = account.get('backup_email', '')
+                    sec = account.get('2fa_secret', '')
+                    
+                    if email:
+                        # 新账号默认状态为pending（待处理）
+                        DBManager.upsert_account(email, pwd, rec, sec, None, status='pending')
+                        count_total += 1
+                
+                print(f"成功导入 {count_total} 个账号（状态: pending）")
+            except Exception as e:
+                print(f"从 accounts.txt 导入时出错: {e}")
+        
+        # 2. 从状态文件导入（覆盖accounts.txt中的状态）
         files_map = {
             "link_ready": "sheerIDlink.txt",
             "verified": "已验证未绑卡.txt",
@@ -111,27 +139,31 @@ class DBManager:
             "ineligible": "无资格号.txt",
             "error": "超时或其他错误.txt"
         }
-        # 注意：有资格待验证号.txt 不导入，因为它只是 link_ready 的副本
         
-        count_total = 0
+        count_status = 0
         for status, filename in files_map.items():
             path = os.path.join(BASE_DIR, filename)
-            if not os.path.exists(path): continue
+            if not os.path.exists(path): 
+                continue
             
             try:
                 with open(path, 'r', encoding='utf-8') as f:
-                    lines = [l.strip() for l in f.readlines() if l.strip()]
+                    lines = [l.strip() for l in f.readlines() if l.strip() and not l.startswith('#')]
                 
                 for line in lines:
                     email, pwd, rec, sec, link = DBManager._simple_parse(line)
                     if email:
                         DBManager.upsert_account(email, pwd, rec, sec, link, status=status)
-                        count_total += 1
-            except Exception:
-                pass
+                        count_status += 1
+            except Exception as e:
+                print(f"从 {filename} 导入时出错: {e}")
         
-        if count_total > 0:
-            print(f"自动从文件导入了 {count_total} 个账号到数据库")
+        if count_status > 0:
+            print(f"从状态文件导入/更新了 {count_status} 个账号")
+        
+        total = count_total + count_status
+        if total > 0:
+            print(f"数据库初始化完成，共处理 {total} 条记录")
 
     @staticmethod
     def upsert_account(email, password=None, recovery_email=None, secret_key=None, 

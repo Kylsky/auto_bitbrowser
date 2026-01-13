@@ -633,6 +633,42 @@ class BrowserWindowCreatorGUI(QMainWindow):
         self.btn_verify_sheerid.clicked.connect(self.action_verify_sheerid)
         google_layout.addWidget(self.btn_verify_sheerid)
         
+        # 一键绑卡订阅按钮
+        self.btn_bind_card = QPushButton("🔗 一键绑卡订阅")
+        self.btn_bind_card.setFixedHeight(40)
+        self.btn_bind_card.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_bind_card.setStyleSheet("""
+            QPushButton {
+                text-align: left; 
+                padding-left: 15px; 
+                font-weight: bold; 
+                color: white;
+                background-color: #FF9800;
+                border-radius: 5px;
+            }
+            QPushButton:hover { background-color: #F57C00; }
+        """)
+        self.btn_bind_card.clicked.connect(self.action_bind_card)
+        google_layout.addWidget(self.btn_bind_card)
+        
+        # 一键全自动处理按钮
+        self.btn_auto_all = QPushButton("🚀 一键全自动处理")
+        self.btn_auto_all.setFixedHeight(40)
+        self.btn_auto_all.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_auto_all.setStyleSheet("""
+            QPushButton {
+                text-align: left; 
+                padding-left: 15px; 
+                font-weight: bold; 
+                color: white;
+                background-color: #9C27B0;
+                border-radius: 5px;
+            }
+            QPushButton:hover { background-color: #7B1FA2; }
+        """)
+        self.btn_auto_all.clicked.connect(self.action_auto_all)
+        google_layout.addWidget(self.btn_auto_all)
+        
         google_layout.addStretch()
         google_page.setLayout(google_layout)
         self.toolbox.addItem(google_page, "Google 专区")
@@ -966,6 +1002,38 @@ class BrowserWindowCreatorGUI(QMainWindow):
             self.verify_window.activateWindow()
         except Exception as e:
             QMessageBox.warning(self, "错误", f"无法打开验证窗口: {e}")
+    
+    def action_bind_card(self):
+        """打开一键绑卡订阅窗口"""
+        try:
+            from bind_card_gui import BindCardWindow
+            
+            if not hasattr(self, 'bind_card_window') or self.bind_card_window is None:
+                self.bind_card_window = BindCardWindow()
+            
+            self.bind_card_window.show()
+            self.bind_card_window.raise_()
+            self.bind_card_window.activateWindow()
+        except Exception as e:
+            QMessageBox.warning(self, "错误", f"无法打开绑卡窗口: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def action_auto_all(self):
+        """打开一键全自动处理窗口"""
+        try:
+            from auto_all_in_one_gui import AutoAllInOneWindow
+            
+            if not hasattr(self, 'auto_all_window') or self.auto_all_window is None:
+                self.auto_all_window = AutoAllInOneWindow()
+            
+            self.auto_all_window.show()
+            self.auto_all_window.raise_()
+            self.auto_all_window.activateWindow()
+        except Exception as e:
+            QMessageBox.warning(self, "错误", f"无法打开全自动处理窗口: {e}")
+            import traceback
+            traceback.print_exc()
         
     def open_selected_browsers(self):
         """打开选中的窗口"""
