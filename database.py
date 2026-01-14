@@ -217,6 +217,17 @@ class DBManager:
     @staticmethod
     def update_status(email, status, message=None):
         DBManager.upsert_account(email, status=status, message=message)
+    
+    @staticmethod
+    def delete_account(email):
+        """删除指定账号"""
+        with lock:
+            conn = DBManager.get_connection()
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM accounts WHERE email = ?', (email,))
+            conn.commit()
+            conn.close()
+            print(f"[DB] 删除账号: {email}")
 
     @staticmethod
     def get_accounts_by_status(status):

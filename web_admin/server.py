@@ -65,6 +65,7 @@ class AccountHandler(http.server.SimpleHTTPRequestHandler):
 
     def do_POST(self):
         parsed_path = urllib.parse.urlparse(self.path)
+        
         if parsed_path.path == '/api/export':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
@@ -91,6 +92,73 @@ class AccountHandler(http.server.SimpleHTTPRequestHandler):
             self.send_header('Content-Disposition', 'attachment; filename="export.txt"')
             self.end_headers()
             self.wfile.write(output.encode('utf-8'))
+            return
+        
+        # 删除账号
+        if parsed_path.path == '/api/delete':
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            params = json.loads(post_data.decode('utf-8'))
+            
+            emails = params.get('emails', [])
+            deleted_count = 0
+            
+            for email in emails:
+                try:
+                    DBManager.delete_account(email)
+                    deleted_count += 1
+                except Exception as e:
+                    print(f"删除账号 {email} 失败: {e}")
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            response = {'success': True, 'deleted': deleted_count}
+            self.wfile.write(json.dumps(response).encode('utf-8'))
+            return
+        
+        # 导入账号
+        if parsed_path.path == '/api/import':
+            content_length = int(self.headers['Content-Length'])
+            post_data = self.rfile.read(content_length)
+            params = json.loads(post_data.decode('utf-8'))
+            
+            accounts_text = params.get('accounts', '')
+            status = params.get('status', 'pending_check')
+            separator = params.get('separator', '----')
+            
+            # 使用智能解析
+            sys.path.insert(0, PARENT_DIR)
+            from create_window import parse_account_line
+            
+            lines = accounts_text.strip().split('\n')
+            imported_count = 0
+            
+            for line in lines:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+                
+                account = parse_account_line(line, separator)
+                if account and account.get('email'):
+                    try:
+                        DBManager.upsert_account(
+                            email=account.get('email'),
+                            password=account.get('password'),
+                            recovery_email=account.get('backup_email'),
+                            secret_key=account.get('2fa_secret'),
+                            verification_link=None,
+                            status=status
+                        )
+                        imported_count += 1
+                    except Exception as e:
+                        print(f"导入账号 {account.get('email')} 失败: {e}")
+            
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            response = {'success': True, 'imported': imported_count}
+            self.wfile.write(json.dumps(response).encode('utf-8'))
             return
             
         self.send_error(404)
