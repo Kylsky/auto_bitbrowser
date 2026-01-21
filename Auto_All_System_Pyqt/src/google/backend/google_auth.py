@@ -450,6 +450,10 @@ async def check_google_one_status(page: Page, timeout: float = 10.0) -> Tuple[st
     @return (status, extra_data)
            status: 'subscribed' | 'verified' | 'link_ready' | 'ineligible' | 'timeout'
            extra_data: SheerID链接或其他信息
+    
+    CSS类说明:
+    - 无资格: krEaxf tTa5V rv8wkf b3UMcc TrfCJc-ow6TGd rv8wkf-ow6TGd b3UMcc
+    - 有资格: krEaxf ZLZvHe rv8wkf b3UMcc
     """
     import time
     start_time = time.time()
@@ -457,27 +461,39 @@ async def check_google_one_status(page: Page, timeout: float = 10.0) -> Tuple[st
     
     while time.time() - start_time < timeout:
         try:
-            # 1. 首先检查"已订阅" - 优先级最高
+            # 1. CSS类检测无资格 - 主要检测方式
+            # 完整CSS类: krEaxf tTa5V rv8wkf b3UMcc TrfCJc-ow6TGd rv8wkf-ow6TGd b3UMcc
+            # 关键特征: 同时包含 tTa5V 和 TrfCJc-ow6TGd
+            try:
+                # 检测无资格的完整CSS类组合
+                ineligible_locator = page.locator('div.krEaxf.tTa5V.TrfCJc-ow6TGd')
+                if await ineligible_locator.count() > 0:
+                    print(f"[GoogleOne] CSS类检测: krEaxf.tTa5V.TrfCJc-ow6TGd -> ineligible")
+                    return "ineligible", None
+            except:
+                pass
+            
+            # 2. 检查"已订阅" - 优先级最高
             for phrase in SUBSCRIBED_PHRASES:
                 try:
                     locator = page.locator(f'text="{phrase}"')
                     if await locator.count() > 0 and await locator.first.is_visible():
-                        print(f"[GoogleOne] 检测到: {phrase} -> subscribed")
+                        print(f"[GoogleOne] 文本检测: {phrase} -> subscribed")
                         return "subscribed", None
                 except:
                     pass
             
-            # 2. 检查"已验证未绑卡" (Get student offer)
+            # 3. 检查"已验证未绑卡" (Get student offer)
             for phrase in VERIFIED_UNBOUND_PHRASES:
                 try:
                     locator = page.locator(f'text="{phrase}"')
                     if await locator.count() > 0 and await locator.first.is_visible():
-                        print(f"[GoogleOne] 检测到: {phrase} -> verified")
+                        print(f"[GoogleOne] 文本检测: {phrase} -> verified")
                         return "verified", None
                 except:
                     pass
             
-            # 3. 检查SheerID链接 (有资格待验证)
+            # 4. 检查SheerID链接 (有资格待验证)
             try:
                 link_element = page.locator('a[href*="sheerid.com"]').first
                 if await link_element.count() > 0:
@@ -487,7 +503,7 @@ async def check_google_one_status(page: Page, timeout: float = 10.0) -> Tuple[st
             except:
                 pass
             
-            # 4. 检查"Verify eligibility"按钮
+            # 5. 检查"Verify eligibility"按钮
             try:
                 verify_btn = page.locator('text="Verify eligibility"')
                 if await verify_btn.count() > 0 and await verify_btn.first.is_visible():
@@ -496,12 +512,12 @@ async def check_google_one_status(page: Page, timeout: float = 10.0) -> Tuple[st
             except:
                 pass
             
-            # 5. 检查"无资格" - 放在最后检测
+            # 6. 检查"无资格" - 文本检测（备选）
             for phrase in NOT_AVAILABLE_PHRASES:
                 try:
                     locator = page.locator(f'text="{phrase}"')
                     if await locator.count() > 0 and await locator.first.is_visible():
-                        print(f"[GoogleOne] 检测到: {phrase} -> ineligible")
+                        print(f"[GoogleOne] 文本检测: {phrase} -> ineligible")
                         return "ineligible", None
                 except:
                     pass
